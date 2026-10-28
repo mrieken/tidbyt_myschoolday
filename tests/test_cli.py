@@ -28,6 +28,7 @@ def test_publish_outside_window_does_not_read_credentials_or_call_api(monkeypatc
 
 
 def test_force_publish_bypasses_time_and_calendar_guards(monkeypatch, capsys):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     monkeypatch.setattr(cli, "_current_time", lambda: datetime(2026, 11, 3, 15, 19, tzinfo=ZoneInfo("Europe/Berlin")))
     monkeypatch.setattr(
         cli.SchoolCalendar,
@@ -56,6 +57,7 @@ def test_force_is_rejected_inside_github_actions(monkeypatch, capsys):
 
 
 def test_force_publish_without_weekend_timetable_fails_without_api(monkeypatch, capsys):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     monkeypatch.setattr(cli, "_current_time", lambda: datetime(2026, 10, 31, 15, 19, tzinfo=ZoneInfo("Europe/Berlin")))
     monkeypatch.setattr(cli, "_client", lambda: (_ for _ in ()).throw(AssertionError("API client created")))
 
@@ -64,6 +66,7 @@ def test_force_publish_without_weekend_timetable_fails_without_api(monkeypatch, 
 
 
 def test_force_remove_is_available_locally(monkeypatch, capsys):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     removed = []
 
     class Client:
