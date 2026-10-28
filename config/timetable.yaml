@@ -1,5 +1,5 @@
 timezone: Europe/Berlin
-installation_id: school-timetable
+installation_id: schooltimetable
 
 weekly_timetable:
   monday: [Deutsch, Deutsch, Mathe, Englisch, Sport]

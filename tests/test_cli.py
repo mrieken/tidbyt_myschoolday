@@ -27,6 +27,57 @@ def test_publish_outside_window_does_not_read_credentials_or_call_api(monkeypatc
     assert "außerhalb des Fensters" in capsys.readouterr().out
 
 
+def test_force_publish_bypasses_time_and_calendar_guards(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_current_time", lambda: datetime(2026, 11, 3, 15, 19, tzinfo=ZoneInfo("Europe/Berlin")))
+    monkeypatch.setattr(
+        cli.SchoolCalendar,
+        "from_file",
+        lambda *args: (_ for _ in ()).throw(AssertionError("calendar guard must be skipped")),
+    )
+    published = []
+
+    class Client:
+        def publish(self, image, installation_id):
+            published.append(installation_id)
+
+    monkeypatch.setattr(cli, "_client", Client)
+
+    assert cli.main(["publish", "--force"]) == 0
+    assert published == ["schooltimetable"]
+    assert "FORCE" in capsys.readouterr().out
+
+
+def test_force_is_rejected_inside_github_actions(monkeypatch, capsys):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setattr(cli, "_client", lambda: (_ for _ in ()).throw(AssertionError("API client created")))
+
+    assert cli.main(["publish", "--force"]) == 1
+    assert "only available for local CLI use" in capsys.readouterr().err
+
+
+def test_force_publish_without_weekend_timetable_fails_without_api(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_current_time", lambda: datetime(2026, 10, 31, 15, 19, tzinfo=ZoneInfo("Europe/Berlin")))
+    monkeypatch.setattr(cli, "_client", lambda: (_ for _ in ()).throw(AssertionError("API client created")))
+
+    assert cli.main(["publish", "--force"]) == 1
+    assert "No Saturday or Sunday timetable" in capsys.readouterr().err
+
+
+def test_force_remove_is_available_locally(monkeypatch, capsys):
+    removed = []
+
+    class Client:
+        def remove(self, installation_id):
+            removed.append(installation_id)
+            return True
+
+    monkeypatch.setattr(cli, "_client", Client)
+
+    assert cli.main(["remove", "--force"]) == 0
+    assert removed == ["schooltimetable"]
+    assert "FORCE" in capsys.readouterr().out
+
+
 def test_validate_config_reports_coverage(capsys):
     assert cli.main(["validate-config"]) == 0
     output = capsys.readouterr().out

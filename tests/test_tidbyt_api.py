@@ -16,7 +16,7 @@ IMAGE = render_timetable([DisplayLesson("Deutsch", (140, 170, 196))] * 4 + [Disp
 def test_publish_posts_exact_background_installation_and_static_webp():
     response = Mock(status_code=200)
     with patch("tidbyt_timetable.tidbyt_api.requests.post", return_value=response) as post:
-        TidbytClient("device id", TOKEN).publish(IMAGE, "school-timetable")
+        TidbytClient("device id", TOKEN).publish(IMAGE, "schooltimetable")
 
     post.assert_called_once()
     args, kwargs = post.call_args
@@ -25,7 +25,7 @@ def test_publish_posts_exact_background_installation_and_static_webp():
     assert kwargs["allow_redirects"] is False
     body = kwargs["json"]
     assert body["deviceID"] == "device id"
-    assert body["installationID"] == "school-timetable"
+    assert body["installationID"] == "schooltimetable"
     assert body["background"] is True
     with Image.open(BytesIO(base64.b64decode(body["image"]))) as decoded:
         assert decoded.format == "WEBP"
@@ -37,16 +37,33 @@ def test_publish_posts_exact_background_installation_and_static_webp():
 def test_publish_http_errors_fail_without_leaking_token(status_code):
     with patch("tidbyt_timetable.tidbyt_api.requests.post", return_value=Mock(status_code=status_code)) as post:
         with pytest.raises(TidbytApiError, match=f"HTTP {status_code}") as error:
-            TidbytClient("device", TOKEN).publish(IMAGE, "school-timetable")
+            TidbytClient("device", TOKEN).publish(IMAGE, "schooltimetable")
 
     post.assert_called_once()
     assert TOKEN not in str(error.value)
 
 
+def test_publish_error_includes_server_message_and_redacts_credentials():
+    response = Mock(status_code=400)
+    response.json.return_value = {
+        "code": 3,
+        "message": f"invalid payload for device device and token {TOKEN}",
+    }
+    with patch("tidbyt_timetable.tidbyt_api.requests.post", return_value=response):
+        with pytest.raises(TidbytApiError) as error:
+            TidbytClient("device", TOKEN).publish(IMAGE, "schooltimetable")
+
+    assert "HTTP 400" in str(error.value)
+    assert "invalid payload" in str(error.value)
+    assert "[redacted]" in str(error.value)
+    assert TOKEN not in str(error.value)
+    assert "device" not in str(error.value)
+
+
 def test_publish_timeout_fails_without_retry():
     with patch("tidbyt_timetable.tidbyt_api.requests.post", side_effect=requests.Timeout) as post:
         with pytest.raises(TidbytApiError, match="timed out"):
-            TidbytClient("device", TOKEN).publish(IMAGE, "school-timetable")
+            TidbytClient("device", TOKEN).publish(IMAGE, "schooltimetable")
     post.assert_called_once()
 
 
@@ -61,17 +78,17 @@ def test_remove_quotes_installation_id_and_accepts_success():
 
 def test_remove_404_is_successful_noop_and_other_errors_fail():
     with patch("tidbyt_timetable.tidbyt_api.requests.delete", return_value=Mock(status_code=404)) as delete:
-        assert not TidbytClient("device", TOKEN).remove("school-timetable")
+        assert not TidbytClient("device", TOKEN).remove("schooltimetable")
     delete.assert_called_once()
 
     with patch("tidbyt_timetable.tidbyt_api.requests.delete", return_value=Mock(status_code=500)) as delete:
         with pytest.raises(TidbytApiError, match="HTTP 500"):
-            TidbytClient("device", TOKEN).remove("school-timetable")
+            TidbytClient("device", TOKEN).remove("schooltimetable")
     delete.assert_called_once()
 
 
 def test_remove_timeout_fails_without_retry():
     with patch("tidbyt_timetable.tidbyt_api.requests.delete", side_effect=requests.Timeout) as delete:
         with pytest.raises(TidbytApiError, match="timed out"):
-            TidbytClient("device", TOKEN).remove("school-timetable")
+            TidbytClient("device", TOKEN).remove("schooltimetable")
     delete.assert_called_once()

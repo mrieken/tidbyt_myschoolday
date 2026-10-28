@@ -105,17 +105,22 @@ def _validate_config() -> int:
     return 0
 
 
-def _publish() -> int:
+def _publish(force: bool = False) -> int:
     now = _current_time()
-    if not is_publish_time(now):
+    if force:
+        print("FORCE: Zeitfenster- und Schultagsprüfung werden übersprungen.")
+    elif not is_publish_time(now):
         print(f"Keine Veröffentlichung: {now:%H:%M} Uhr liegt außerhalb des Fensters 06:30–08:00 Europe/Berlin.")
         return 0
 
     timetable = load_timetable(TIMETABLE_PATH)
-    calendar = SchoolCalendar.from_file(HOLIDAYS_PATH, timetable.additional_days_off)
-    if not calendar.is_school_day(now.date()):
-        print(f"Keine Veröffentlichung: {now.date()} ist laut Schultagskalender kein Schultag.")
-        return 0
+    if force and now.weekday() >= len(WEEKDAYS):
+        raise ValueError("No Saturday or Sunday timetable is configured for forced publication")
+    if not force:
+        calendar = SchoolCalendar.from_file(HOLIDAYS_PATH, timetable.additional_days_off)
+        if not calendar.is_school_day(now.date()):
+            print(f"Keine Veröffentlichung: {now.date()} ist laut Schultagskalender kein Schultag.")
+            return 0
 
     image = render_timetable(timetable.lessons_for_date(now.date()))
     _client().publish(image, timetable.installation_id)
@@ -123,9 +128,11 @@ def _publish() -> int:
     return 0
 
 
-def _remove() -> int:
+def _remove(force: bool = False) -> int:
     timetable = load_timetable(TIMETABLE_PATH)
     removed = _client().remove(timetable.installation_id)
+    if force:
+        print("FORCE: Entfernung unabhängig von Zeitplan und Schultag ausgeführt.")
     if removed:
         print("Stundenplan-Installation entfernt.")
     else:
@@ -142,8 +149,10 @@ def _parser() -> argparse.ArgumentParser:
     preview_source.add_argument("--date", help="Vorschautag im Format YYYY-MM-DD")
     preview_source.add_argument("--weekday", choices=WEEKDAYS, help="Wochentag für die Vorschau")
 
-    commands.add_parser("publish", help="Geplanter Produktionsaufruf: Veröffentlichung nur im Zeitfenster")
-    commands.add_parser("remove", help="Geplanter Produktionsaufruf: Stundenplan-Installation entfernen")
+    publish_parser = commands.add_parser("publish", help="Stundenplan veröffentlichen")
+    publish_parser.add_argument("--force", action="store_true", help="Lokale Zeit- und Schultagsprüfungen überspringen")
+    remove_parser = commands.add_parser("remove", help="Stundenplan-Installation entfernen")
+    remove_parser.add_argument("--force", action="store_true", help="Entfernung ausdrücklich lokal erzwingen")
     commands.add_parser("validate-config", help="Prüft Stundenplan und offiziellen Ferienkalender")
     return parser
 
@@ -157,9 +166,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "validate-config":
             return _validate_config()
         if args.command == "publish":
-            return _publish()
+            if args.force and os.environ.get("GITHUB_ACTIONS", "").lower() == "true":
+                raise ValueError("--force is only available for local CLI use")
+            return _publish(force=args.force)
         if args.command == "remove":
-            return _remove()
+            if args.force and os.environ.get("GITHUB_ACTIONS", "").lower() == "true":
+                raise ValueError("--force is only available for local CLI use")
+            return _remove(force=args.force)
     except (CalendarCoverageError, ConfigurationError, TidbytApiError, ValueError, OSError) as error:
         print(f"Fehler: {error}", file=sys.stderr)
         return 1

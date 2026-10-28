@@ -11,7 +11,7 @@ Build a small, production-ready Python application that displays **today's five 
 - After 08:00, remove that installation; perform independent cleanup attempts at **08:10** and **08:20**.
 - Do not publish on weekends, official Niedersachsen school holidays, Niedersachsen statutory holidays, or manually configured days off.
 - Never pin the timetable and never interrupt the current app on screen.
-- Support a **local preview**, but **do not create manual live-publish or live-delete testing controls**.
+- Support a **local preview** and explicit local-only force options for production publish/remove; do not add manual GitHub workflow dispatch controls.
 - Prioritize clarity, small dependencies, deterministic behavior, and tests.
 
 The application is intentionally simple: no server, web UI, database, Pixlet dependency, alternate firmware, or paid hosting.
@@ -85,7 +85,7 @@ Use `zoneinfo.ZoneInfo("Europe/Berlin")` for every calendar and time comparison;
 
 1. Publishing always checks current **local date AND current time** before rendering/sending. It must never publish at or after 08:00, even when GitHub Actions runs late.
 2. Publishing checks that today is a valid school day before sending.
-3. Publishing uses the same fixed installation ID (`school-timetable`) every day, so a repeated publish updates an existing entry rather than creating duplicates.
+3. Publishing uses the same fixed, alphanumeric installation ID (`schooltimetable`) every day, so a repeated publish updates an existing entry rather than creating duplicates.
 4. Removal is allowed regardless of school-day status. Treat a documented `404 Not Found` for an already-absent installation as a successful no-op; do not swallow other failures.
 5. The cleanup processes are independent GitHub Actions runs, **not in-process retries**.
 6. **One outbound Tidbyt API request maximum per scheduled execution**, excluding zero-request no-op executions. No automatic HTTP retry adapter, loop, or exponential backoff.
@@ -122,7 +122,7 @@ Use straightforward YAML, committed to git with no secrets. Suggested `config/ti
 
 ```yaml
 timezone: Europe/Berlin
-installation_id: school-timetable
+installation_id: schooltimetable
 
 weekly_timetable:
   monday:    ["Deutsch", "Sport", "Mathe", "Englisch", ""]
@@ -187,7 +187,7 @@ The request body must include these exact JSON fields:
 {
   "deviceID": "<device-id>",
   "image": "<base64-encoded-64x32-static-webp>",
-  "installationID": "school-timetable",
+  "installationID": "schooltimetable",
   "background": true
 }
 ```
@@ -242,7 +242,7 @@ on:
 - Use secrets `TIDBYT_DEVICE_ID` and `TIDBYT_API_TOKEN` via environment variables.
 - Use clear logs without credential exposure.
 - Failing API operations result in a nonzero process exit; rely on standard GitHub Actions failure notifications (which depend on user's GitHub notification preferences).
-- The spec explicitly requests **local preview only for testing**: do not add `workflow_dispatch` commands allowing ad hoc live publication/removal. Scheduled production runs are allowed.
+- Do not add `workflow_dispatch` commands allowing ad hoc live publication/removal. The explicit `--force` CLI options are local-only; scheduled production runs never pass them.
 - Document possibility of delayed or skipped GitHub scheduled runs, especially near the top of an hour.
 
 GitHub docs: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onschedule
@@ -293,7 +293,7 @@ python -m tidbyt_timetable.cli validate-config
 
 - `preview` does **not** require a Tidbyt token or network access and writes images to `output/`.
 - Preview accepts an explicit date or weekday for design work even if that date would be a holiday; it is a **render-only preview**. It should clearly state what data is shown.
-- `publish` and `remove` are **production entrypoints for scheduled workflows**, not general-purpose test controls. Do not implement `--force`, `--ignore-school-day`, or similar publishing bypasses.
+- `publish` and `remove` are production entrypoints. Their `--force` options are for explicit local operations only and must be rejected in GitHub Actions. Scheduled workflows must keep the time and school-day guard active by never passing `--force`.
 - `publish` validates school-day and time rules before reading credentials/sending data.
 - `validate-config` validates the weekly timetable and the official school calendar's coverage and records.
 
@@ -366,7 +366,7 @@ The work is done when:
 - [ ] Normal Tidbyt app rotation is preserved using a stable installation and background push.
 - [ ] Production removes installation at 08:00, plus independent cleanup at 08:10/08:20.
 - [ ] Delete of a missing installation is treated as success; other API failures fail the workflow.
-- [ ] No API retries within an execution; no manual live-test publishing controls.
+- [ ] No API retries within an execution; no manual GitHub workflow dispatch; local force flags remain explicit and guarded.
 - [ ] Secrets are injected using GitHub Actions, never stored in source.
 - [ ] The README covers first-time setup, GitHub secrets, local preview, timetable changes, holiday data maintenance, limitations, and troubleshooting.
 

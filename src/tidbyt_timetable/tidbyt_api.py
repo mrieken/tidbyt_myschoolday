@@ -32,6 +32,36 @@ class TidbytClient:
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self._api_token}"}
 
+    def _error_detail(self, response: requests.Response) -> str:
+        detail = ""
+        try:
+            payload = response.json()
+        except (ValueError, requests.RequestException):
+            payload = None
+        if isinstance(payload, dict):
+            for key in ("message", "error", "detail"):
+                value = payload.get(key)
+                if isinstance(value, str):
+                    detail = value
+                    break
+                if isinstance(value, dict) and isinstance(value.get("message"), str):
+                    detail = value["message"]
+                    break
+        if not detail:
+            body = response.text
+            if isinstance(body, str):
+                detail = body
+        for sensitive_value in (self._api_token, self.device_id):
+            detail = detail.replace(sensitive_value, "[redacted]")
+        return " ".join(detail.split())[:400]
+
+    def _http_error(self, operation: str, response: requests.Response) -> TidbytApiError:
+        message = f"Tidbyt {operation} failed with HTTP {response.status_code}"
+        detail = self._error_detail(response)
+        if detail:
+            message = f"{message}: {detail}"
+        return TidbytApiError(message)
+
     def publish(self, image: Image.Image, installation_id: str) -> None:
         image_data = base64.b64encode(encode_static_webp(image)).decode("ascii")
         url = f"{API_ROOT}/{quote(self.device_id, safe='')}/push"
@@ -54,7 +84,7 @@ class TidbytClient:
         except requests.RequestException as error:
             raise TidbytApiError("Tidbyt publish request failed") from error
         if response.status_code != 200:
-            raise TidbytApiError(f"Tidbyt publish failed with HTTP {response.status_code}")
+            raise self._http_error("publish", response)
 
     def remove(self, installation_id: str) -> bool:
         url = (
@@ -75,5 +105,5 @@ class TidbytClient:
         if response.status_code == 404:
             return False
         if response.status_code not in (200, 204):
-            raise TidbytApiError(f"Tidbyt removal failed with HTTP {response.status_code}")
+            raise self._http_error("removal", response)
         return True

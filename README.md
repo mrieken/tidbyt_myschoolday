@@ -40,9 +40,16 @@ Ranges use inclusive bounds. Overlapping ranges are accepted with a warning. Ver
 
 ## Scheduled Operation
 
-Add the GitHub repository secrets `TIDBYT_DEVICE_ID` and `TIDBYT_API_TOKEN`. The scheduled workflow uses Berlin local-time schedules: weekdays at 06:30 publish in the background under the stable `school-timetable` installation ID; every day at 08:00, 08:10, and 08:20 performs an independent removal attempt. It never pins the app or interrupts the app currently on screen. A missing installation (HTTP 404) is a successful no-op.
+Add the GitHub repository secrets `TIDBYT_DEVICE_ID` and `TIDBYT_API_TOKEN`. The scheduled workflow uses Berlin local-time schedules: weekdays at 06:30 publish in the background under the stable, alphanumeric `schooltimetable` installation ID; every day at 08:00, 08:10, and 08:20 performs an independent removal attempt. It never pins the app or interrupts the app currently on screen. A missing installation (HTTP 404) is a successful no-op.
 
-For local production operations only, the CLI reads the same two variables from the process environment or a root `.env` file. Keep `.env` private; it is ignored by git. `preview` and `validate-config` never read credentials. The `publish` and `remove` commands have no force or school-day bypass option.
+For local production operations only, the CLI reads the same two variables from the process environment or a root `.env` file. Keep `.env` private; it is ignored by git. `preview` and `validate-config` never read credentials. A local `publish --force` skips both time-window and school-day checks; `remove --force` explicitly requests removal. These force options are rejected inside GitHub Actions and are not used by the scheduled workflow. Both commands make live API requests when successful, so use them deliberately.
+
+```sh
+./.venv/bin/python -m tidbyt_timetable.cli publish --force
+./.venv/bin/python -m tidbyt_timetable.cli remove --force
+```
+
+Forced publication still requires a weekday timetable; no weekend timetable is configured.
 
 GitHub Actions schedules are best effort and may be delayed or skipped, particularly near the top of an hour. Runtime checks prevent a delayed publish at or after 08:00, but scheduled cleanup cannot guarantee removal exactly at 08:00. Concurrency prevents overlapping workflow runs; each execution makes at most one API request and does not retry it.
 

@@ -84,8 +84,8 @@ def load_timetable(path: Path) -> TimetableConfig:
         raise ConfigurationError(f"Unknown timezone: {timezone_name}") from error
 
     installation_id = data.get("installation_id")
-    if installation_id != "school-timetable":
-        raise ConfigurationError("installation_id must remain school-timetable")
+    if installation_id != "schooltimetable":
+        raise ConfigurationError("installation_id must remain schooltimetable (Tidbyt IDs are alphanumeric)")
 
     raw_subjects = data.get("subjects")
     if not isinstance(raw_subjects, dict) or not raw_subjects:
