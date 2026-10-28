@@ -1,0 +1,42 @@
+name: School timetable
+
+on:
+  schedule:
+    - cron: '30 6 * * 1-5'
+      timezone: 'Europe/Berlin'
+    - cron: '0 8 * * *'
+      timezone: 'Europe/Berlin'
+    - cron: '10 8 * * *'
+      timezone: 'Europe/Berlin'
+    - cron: '20 8 * * *'
+      timezone: 'Europe/Berlin'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tidbyt-school-timetable
+  cancel-in-progress: false
+
+jobs:
+  scheduled-operation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install .
+      - name: Publish timetable
+        if: github.event.schedule == '30 6 * * 1-5'
+        run: python -m tidbyt_timetable.cli publish
+        env:
+          TIDBYT_DEVICE_ID: ${{ secrets.TIDBYT_DEVICE_ID }}
+          TIDBYT_API_TOKEN: ${{ secrets.TIDBYT_API_TOKEN }}
+      - name: Remove timetable
+        if: github.event.schedule != '30 6 * * 1-5'
+        run: python -m tidbyt_timetable.cli remove
+        env:
+          TIDBYT_DEVICE_ID: ${{ secrets.TIDBYT_DEVICE_ID }}
+          TIDBYT_API_TOKEN: ${{ secrets.TIDBYT_API_TOKEN }}

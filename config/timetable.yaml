@@ -1,0 +1,40 @@
+timezone: Europe/Berlin
+installation_id: school-timetable
+
+weekly_timetable:
+  monday: [Deutsch, Deutsch, Mathe, Englisch, Sport]
+  tuesday: [Deutsch, Mathe, Musik, Sport, Kunst]
+  wednesday: [Deutsch, Religion, Mathe, Sachkunde, Betreuung]
+  thursday: [Deutsch, Mathe, Sachkunde, Sachkunde, Betreuung]
+  friday: [Deutsch, Religion, Mathe, Kunst, Betreuung]
+
+subjects:
+  Deutsch:
+    abbreviation: DE
+    color: "#8CAAC4"
+  Sport:
+    abbreviation: SP
+    color: "#8DAE9B"
+  Mathe:
+    abbreviation: MA
+    color: "#C5AC81"
+  Englisch:
+    abbreviation: EN
+    color: "#AAA0BE"
+  Religion:
+    abbreviation: RE
+    color: "#D4A5A5"
+  Sachkunde:
+    abbreviation: SA
+    color: "#A5D4B4"
+  Betreuung:
+    abbreviation: BE
+    color: "#D4D4A5"
+  Kunst:
+    abbreviation: KU
+    color: "#B4A5D4"
+  Musik:
+    abbreviation: MU
+    color: "#A5C4D4"
+
+additional_days_off: []

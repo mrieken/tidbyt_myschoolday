@@ -1,0 +1,1 @@
+"""School timetable display for Tidbyt Gen 1."""
