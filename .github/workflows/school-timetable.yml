@@ -2,13 +2,13 @@ name: School timetable
 
 on:
   schedule:
-    - cron: '30 6 * * 1-5'
+    - cron: '32 6 * * 1-5'
       timezone: 'Europe/Berlin'
-    - cron: '0 8 * * *'
+    - cron: '02 8 * * 1-5'
       timezone: 'Europe/Berlin'
-    - cron: '10 8 * * *'
+    - cron: '12 8 * * 1-5'
       timezone: 'Europe/Berlin'
-    - cron: '20 8 * * *'
+    - cron: '21 8 * * 1-5'
       timezone: 'Europe/Berlin'
 
 permissions:
@@ -29,13 +29,13 @@ jobs:
           cache: pip
       - run: python -m pip install .
       - name: Publish timetable
-        if: github.event.schedule == '30 6 * * 1-5'
+        if: github.event.schedule == '32 6 * * 1-5'
         run: python -m tidbyt_timetable.cli publish
         env:
           TIDBYT_DEVICE_ID: ${{ secrets.TIDBYT_DEVICE_ID }}
           TIDBYT_API_TOKEN: ${{ secrets.TIDBYT_API_TOKEN }}
       - name: Remove timetable
-        if: github.event.schedule != '30 6 * * 1-5'
+        if: github.event.schedule != '32 6 * * 1-5'
         run: python -m tidbyt_timetable.cli remove
         env:
           TIDBYT_DEVICE_ID: ${{ secrets.TIDBYT_DEVICE_ID }}
