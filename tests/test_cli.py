@@ -4,6 +4,12 @@ from zoneinfo import ZoneInfo
 from tidbyt_timetable import cli
 
 
+def test_scheduled_workflow_installs_package_editably():
+    workflow = (cli.ROOT / ".github" / "workflows" / "school-timetable.yml").read_text(encoding="utf-8")
+
+    assert "python -m pip install -e ." in workflow
+
+
 def test_preview_is_local_and_writes_native_and_scaled_images(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(cli, "ROOT", tmp_path)
     monkeypatch.setattr(cli, "TIMETABLE_PATH", cli.ROOT / "config" / "timetable.yaml")
