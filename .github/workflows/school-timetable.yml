@@ -1,6 +1,18 @@
+
 name: School timetable
 
 on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Timetable operation'
+        required: true
+        type: choice
+        default: publish
+        options:
+          - publish
+          - remove
+
   schedule:
     - cron: '32 6 * * 1-5'
       timezone: 'Europe/Berlin'
@@ -23,19 +35,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: pip
+
       - run: python -m pip install .
+
       - name: Publish timetable
-        if: github.event.schedule == '32 6 * * 1-5'
+        if: >-
+          (github.event_name == 'schedule' &&
+          github.event.schedule == '32 6 * * 1-5') ||
+          (github.event_name == 'workflow_dispatch' &&
+          inputs.operation == 'publish')
         run: python -m tidbyt_timetable.cli publish
         env:
           TIDBYT_DEVICE_ID: ${{ secrets.TIDBYT_DEVICE_ID }}
           TIDBYT_API_TOKEN: ${{ secrets.TIDBYT_API_TOKEN }}
+
       - name: Remove timetable
-        if: github.event.schedule != '32 6 * * 1-5'
+        if: >-
+          (github.event_name == 'schedule' &&
+          github.event.schedule != '32 6 * * 1-5') ||
+          (github.event_name == 'workflow_dispatch' &&
+          inputs.operation == 'remove')
         run: python -m tidbyt_timetable.cli remove
         env:
           TIDBYT_DEVICE_ID: ${{ secrets.TIDBYT_DEVICE_ID }}
