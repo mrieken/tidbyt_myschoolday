@@ -13,15 +13,10 @@ on:
           - publish
           - remove
 
-  schedule:
-    - cron: '32 6 * * 1-5'
-      timezone: 'Europe/Berlin'
-    - cron: '02 8 * * 1-5'
-      timezone: 'Europe/Berlin'
-    - cron: '12 8 * * 1-5'
-      timezone: 'Europe/Berlin'
-    - cron: '21 8 * * 1-5'
-      timezone: 'Europe/Berlin'
+  repository_dispatch:
+    types:
+      - timetable-publish
+      - timetable-remove
 
 permissions:
   contents: read
@@ -33,6 +28,7 @@ concurrency:
 jobs:
   scheduled-operation:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -43,12 +39,19 @@ jobs:
 
       - run: python -m pip install -e .
 
+      - name: Log execution
+        run: |
+          echo "Event: ${{ github.event_name }}"
+          echo "Action: ${{ github.event.action }}"
+          echo "UTC: $(date -u)"
+          echo "Berlin: $(TZ=Europe/Berlin date)"
+
       - name: Publish timetable
         if: >-
-          (github.event_name == 'schedule' &&
-          github.event.schedule == '32 6 * * 1-5') ||
+          (github.event_name == 'repository_dispatch' &&
+           github.event.action == 'timetable-publish') ||
           (github.event_name == 'workflow_dispatch' &&
-          inputs.operation == 'publish')
+           inputs.operation == 'publish')
         run: python -m tidbyt_timetable.cli publish
         env:
           TIDBYT_DEVICE_ID: ${{ secrets.TIDBYT_DEVICE_ID }}
@@ -56,10 +59,10 @@ jobs:
 
       - name: Remove timetable
         if: >-
-          (github.event_name == 'schedule' &&
-          github.event.schedule != '32 6 * * 1-5') ||
+          (github.event_name == 'repository_dispatch' &&
+           github.event.action == 'timetable-remove') ||
           (github.event_name == 'workflow_dispatch' &&
-          inputs.operation == 'remove')
+           inputs.operation == 'remove')
         run: python -m tidbyt_timetable.cli remove
         env:
           TIDBYT_DEVICE_ID: ${{ secrets.TIDBYT_DEVICE_ID }}
