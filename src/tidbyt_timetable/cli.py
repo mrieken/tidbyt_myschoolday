@@ -14,7 +14,7 @@ from PIL import Image
 from tidbyt_timetable.calendar import CalendarCoverageError, SchoolCalendar
 from tidbyt_timetable.config import ConfigurationError, WEEKDAYS, load_timetable
 from tidbyt_timetable.renderer import render_timetable
-from tidbyt_timetable.schedule import BERLIN, is_publish_time
+from tidbyt_timetable.schedule import BERLIN
 from tidbyt_timetable.tidbyt_api import TidbytApiError, TidbytClient
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -108,10 +108,7 @@ def _validate_config() -> int:
 def _publish(force: bool = False) -> int:
     now = _current_time()
     if force:
-        print("FORCE: Zeitfenster- und Schultagsprüfung werden übersprungen.")
-    elif not is_publish_time(now):
-        print(f"Keine Veröffentlichung: {now:%H:%M} Uhr liegt außerhalb des Fensters 06:30–08:00 Europe/Berlin.")
-        return 0
+        print("FORCE: Schultagsprüfung wird übersprungen.")
 
     timetable = load_timetable(TIMETABLE_PATH)
     if force and now.weekday() >= len(WEEKDAYS):
@@ -150,7 +147,7 @@ def _parser() -> argparse.ArgumentParser:
     preview_source.add_argument("--weekday", choices=WEEKDAYS, help="Wochentag für die Vorschau")
 
     publish_parser = commands.add_parser("publish", help="Stundenplan veröffentlichen")
-    publish_parser.add_argument("--force", action="store_true", help="Lokale Zeit- und Schultagsprüfungen überspringen")
+    publish_parser.add_argument("--force", action="store_true", help="Lokale Schultagsprüfung überspringen")
     remove_parser = commands.add_parser("remove", help="Stundenplan-Installation entfernen")
     remove_parser.add_argument("--force", action="store_true", help="Entfernung ausdrücklich lokal erzwingen")
     commands.add_parser("validate-config", help="Prüft Stundenplan und offiziellen Ferienkalender")

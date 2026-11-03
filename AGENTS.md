@@ -7,7 +7,7 @@
 
 Build a small, production-ready Python application that displays **today's five school lessons** on a **Tidbyt Gen 1 (64 × 32 RGB pixels)** using its **original firmware**. The app must use the Tidbyt **REST API directly** and run automatically through **GitHub Actions** at no additional service cost (subject to GitHub free-tier usage).
 
-- On school days, make the timetable part of the device's normal app rotation between **06:30 and 08:00**, Europe/Berlin.
+- On valid school days, make the timetable part of the device's normal app rotation whenever the workflow triggers; do not enforce a time-of-day publish window in application code.
 - After 08:00, remove that installation; perform independent cleanup attempts at **08:10** and **08:20**.
 - Do not publish on weekends, official Niedersachsen school holidays, Niedersachsen statutory holidays, or manually configured days off.
 - Never pin the timetable and never interrupt the current app on screen.
@@ -76,21 +76,21 @@ Use `zoneinfo.ZoneInfo("Europe/Berlin")` for every calendar and time comparison;
 
 | Schedule, Europe/Berlin | Task | Behavior |
 | --- | --- | --- |
-| 06:30 Monday–Friday | `publish` | Publish **only** if this is a school day **and** execution starts during `[06:30, 08:00)` |
+| Workflow publish trigger | `publish` | Publish if this is a school day; application code does not impose a time-of-day limit |
 | 08:00 daily | `remove` | Delete the installation, including on holidays/weekends to clean up stale content |
 | 08:10 daily | `remove` | Independent cleanup attempt |
 | 08:20 daily | `remove` | Independent final cleanup attempt |
 
 **Idempotency and guards:**
 
-1. Publishing always checks current **local date AND current time** before rendering/sending. It must never publish at or after 08:00, even when GitHub Actions runs late.
-2. Publishing checks that today is a valid school day before sending.
+1. Publishing checks the current **Berlin local date** before rendering/sending; it does not enforce a time-of-day window.
+2. Publishing checks that today is a valid school day before sending, unless an explicit local `--force` is used.
 3. Publishing uses the same fixed, alphanumeric installation ID (`schooltimetable`) every day, so a repeated publish updates an existing entry rather than creating duplicates.
 4. Removal is allowed regardless of school-day status. Treat a documented `404 Not Found` for an already-absent installation as a successful no-op; do not swallow other failures.
 5. The cleanup processes are independent GitHub Actions runs, **not in-process retries**.
 6. **One outbound Tidbyt API request maximum per scheduled execution**, excluding zero-request no-op executions. No automatic HTTP retry adapter, loop, or exponential backoff.
 7. HTTP errors, authentication errors, timeouts, bad configuration, or missing secrets should fail the GitHub Actions run with useful non-secret log messages.
-8. GitHub Actions schedules are best effort; occasional missed or delayed appearances are acceptable, and removal may be late. Document that this cannot provide a hard 08:00 cutoff.
+8. GitHub Actions triggers are best effort; runs may be delayed or skipped. Application code must not reject a delayed publish based on the time of day.
 9. Apply GitHub workflow `concurrency` to avoid overlapping jobs operating on the same installation; disable cancel-in-progress. Runtime guards remain authoritative if jobs start out of order.
 10. No UI setting should pin the custom installation; use background publication to join rotation quietly.
 
@@ -293,8 +293,8 @@ python -m tidbyt_timetable.cli validate-config
 
 - `preview` does **not** require a Tidbyt token or network access and writes images to `output/`.
 - Preview accepts an explicit date or weekday for design work even if that date would be a holiday; it is a **render-only preview**. It should clearly state what data is shown.
-- `publish` and `remove` are production entrypoints. Their `--force` options are for explicit local operations only and must be rejected in GitHub Actions. Scheduled workflows must keep the time and school-day guard active by never passing `--force`.
-- `publish` validates school-day and time rules before reading credentials/sending data.
+- `publish` and `remove` are production entrypoints. Their `--force` options are for explicit local operations only and must be rejected in GitHub Actions. Workflow triggers must not pass `--force`.
+- `publish` validates the school-day calendar before reading credentials/sending data; do not add a time-of-day guard.
 - `validate-config` validates the weekly timetable and the official school calendar's coverage and records.
 
 ## 10. Implementation plan for Copilot
@@ -336,13 +336,9 @@ Do not stop after scaffolding; complete implementation and automated tests. Do n
 - Palette stays muted; not five saturated stripes.
 - Deterministic output bytes or stable pixel arrays for same config and day.
 
-**Time/scheduling** (inject a test clock)
-- Before 06:30: no publish.
-- 06:30: publish allowed on a valid school day.
-- 07:59: publish allowed.
-- 08:00 and later: publish forbidden.
-- Delayed publish event executed at 08:07 does nothing.
-- European DST transitions are handled via `Europe/Berlin`.
+**Time/scheduling**
+- A publish invocation is not blocked by its time of day.
+- The current date is determined in `Europe/Berlin`, including across DST transitions.
 - Removal on weekends/holidays still works.
 - Repeated removal and 404 are successful no-ops.
 
@@ -362,7 +358,7 @@ The work is done when:
 - [ ] Rows show the full configured subject names; an unknown blank slot displays only its lesson number.
 - [ ] All weekday schedules are editable in YAML and validated as exactly five lessons.
 - [ ] Niedersachsen holidays (from official source), state public holidays, weekends and manual days off are excluded.
-- [ ] Publishing happens only in `[06:30,08:00)` Berlin time on valid school days.
+- [ ] Publishing is limited to valid school days, without a time-of-day restriction in application code.
 - [ ] Normal Tidbyt app rotation is preserved using a stable installation and background push.
 - [ ] Production removes installation at 08:00, plus independent cleanup at 08:10/08:20.
 - [ ] Delete of a missing installation is treated as success; other API failures fail the workflow.

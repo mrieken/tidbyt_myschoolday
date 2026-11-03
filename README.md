@@ -42,7 +42,7 @@ Ranges use inclusive bounds. Overlapping ranges are accepted with a warning. Ver
 
 Add the GitHub repository secrets `TIDBYT_DEVICE_ID` and `TIDBYT_API_TOKEN`. The scheduled workflow uses Berlin local-time schedules: weekdays at 06:30 publish in the background under the stable, alphanumeric `schooltimetable` installation ID; every day at 08:00, 08:10, and 08:20 performs an independent removal attempt. It never pins the app or interrupts the app currently on screen. A missing installation (HTTP 404) is a successful no-op.
 
-For local production operations only, the CLI reads the same two variables from the process environment or a root `.env` file. Keep `.env` private; it is ignored by git. `preview` and `validate-config` never read credentials. A local `publish --force` skips both time-window and school-day checks; `remove --force` explicitly requests removal. These force options are rejected inside GitHub Actions and are not used by the scheduled workflow. Both commands make live API requests when successful, so use them deliberately.
+For local production operations only, the CLI reads the same two variables from the process environment or a root `.env` file. Keep `.env` private; it is ignored by git. `preview` and `validate-config` never read credentials. The application does not impose a publish time window: every invocation publishes on a valid school day, regardless of the hour. A local `publish --force` also skips the school-day check; `remove --force` explicitly requests removal. These force options are rejected inside GitHub Actions. Both commands make live API requests when successful, so use them deliberately.
 
 ```sh
 ./.venv/bin/python -m tidbyt_timetable.cli publish --force
@@ -51,11 +51,11 @@ For local production operations only, the CLI reads the same two variables from 
 
 Forced publication still requires a weekday timetable; no weekend timetable is configured.
 
-GitHub Actions schedules are best effort and may be delayed or skipped, particularly near the top of an hour. Runtime checks prevent a delayed publish at or after 08:00, but scheduled cleanup cannot guarantee removal exactly at 08:00. Concurrency prevents overlapping workflow runs; each execution makes at most one API request and does not retry it.
+GitHub Actions triggers are controlled by the workflow configuration and may be delayed or skipped. The application does not reject a delayed publish based on the time of day; scheduled cleanup may therefore remove it later. Concurrency prevents overlapping workflow runs; each execution makes at most one API request and does not retry it.
 
 ## Troubleshooting
 
 - `validate-config` reports unknown subjects, malformed dates, missing weekdays, or lesson counts that differ from five: correct the YAML and rerun validation.
-- A publish run outside 06:30–08:00 Berlin time or on a non-school day exits successfully without reading credentials or contacting Tidbyt.
+- A publish run on a non-school day exits successfully without reading credentials or contacting Tidbyt. There is no time-of-day guard.
 - A publish date outside holiday-calendar coverage fails closed. Extend coverage only after checking an official Niedersachsen publication.
 - HTTP errors and timeouts fail the operation with a status-only message; credentials and response bodies are not printed.

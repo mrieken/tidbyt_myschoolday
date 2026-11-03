@@ -25,12 +25,29 @@ def test_preview_is_local_and_writes_native_and_scaled_images(tmp_path, monkeypa
     assert "reine Darstellung, keine Prüfung auf Schultag" in capsys.readouterr().out
 
 
-def test_publish_outside_window_does_not_read_credentials_or_call_api(monkeypatch, capsys):
-    monkeypatch.setattr(cli, "_current_time", lambda: datetime(2026, 11, 3, 8, 7, tzinfo=ZoneInfo("Europe/Berlin")))
+def test_publish_at_0625_is_not_blocked_by_a_time_guard(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_current_time", lambda: datetime(2026, 11, 3, 6, 25, tzinfo=ZoneInfo("Europe/Berlin")))
+    monkeypatch.setattr(cli.SchoolCalendar, "from_file", lambda *args: type("Calendar", (), {"is_school_day": lambda self, day: True})())
+    published = []
+
+    class Client:
+        def publish(self, image, installation_id):
+            published.append(installation_id)
+
+    monkeypatch.setattr(cli, "_client", Client)
+
+    assert cli.main(["publish"]) == 0
+    assert published == ["schooltimetable"]
+    assert "Keine Veröffentlichung" not in capsys.readouterr().out
+
+
+def test_publish_still_skips_a_non_school_day_at_any_time(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_current_time", lambda: datetime(2026, 11, 3, 15, 19, tzinfo=ZoneInfo("Europe/Berlin")))
+    monkeypatch.setattr(cli.SchoolCalendar, "from_file", lambda *args: type("Calendar", (), {"is_school_day": lambda self, day: False})())
     monkeypatch.setattr(cli, "_client", lambda: (_ for _ in ()).throw(AssertionError("API client created")))
 
     assert cli.main(["publish"]) == 0
-    assert "außerhalb des Fensters" in capsys.readouterr().out
+    assert "kein Schultag" in capsys.readouterr().out
 
 
 def test_force_publish_bypasses_time_and_calendar_guards(monkeypatch, capsys):
