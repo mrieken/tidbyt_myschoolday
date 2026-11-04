@@ -2,13 +2,16 @@ timezone: Europe/Berlin
 installation_id: schooltimetable
 
 weekly_timetable:
-  monday: [Deutsch, Deutsch, Mathe, Englisch, Sport]
+  monday: [Erzählkreis, Deutsch, Mathe, Englisch, Sport]
   tuesday: [Deutsch, Mathe, Musik, Sport, Kunst]
   wednesday: [Deutsch, Religion, Mathe, Sachkunde, Betreuung]
   thursday: [Deutsch, Mathe, Sachkunde, Sachkunde, Betreuung]
   friday: [Deutsch, Religion, Mathe, Kunst, Betreuung]
 
 subjects:
+  Erzählkreis:
+    abbreviation: ER
+    color: "#C4B48C"
   Deutsch:
     abbreviation: DE
     color: "#8CAAC4"

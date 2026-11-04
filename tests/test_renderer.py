@@ -47,6 +47,15 @@ def test_webp_is_static_and_native_resolution():
         assert decoded.n_frames == 1
 
 
+def test_renderer_draws_german_umlaut():
+    lesson = DisplayLesson("Erzählkreis", (196, 180, 140))
+
+    image = render_timetable([lesson, *LESSONS[1:]])
+
+    assert image.getpixel((27, ROW_TOPS[0])) == lesson.color
+    assert image.getpixel((29, ROW_TOPS[0])) == lesson.color
+
+
 def test_renderer_rejects_more_or_fewer_than_five_slots():
     with pytest.raises(ValueError, match="Exactly five"):
         render_timetable(LESSONS[:4])

@@ -19,8 +19,8 @@ def test_config_has_five_editable_weekday_slots_and_subject_names():
 
 def test_blank_unknown_lesson_remains_valid_and_has_no_subject_name(tmp_path):
     text = CONFIG_PATH.read_text(encoding="utf-8").replace(
-        "monday: [Deutsch, Deutsch, Mathe, Englisch, Sport]",
-        'monday: [Deutsch, Deutsch, Mathe, Englisch, ""]',
+        "monday: [Erzählkreis, Deutsch, Mathe, Englisch, Sport]",
+        'monday: [Erzählkreis, Deutsch, Mathe, Englisch, ""]',
     )
     config_path = tmp_path / "timetable.yaml"
     config_path.write_text(text, encoding="utf-8")
